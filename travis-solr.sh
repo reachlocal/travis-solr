@@ -3,7 +3,7 @@
 SOLR_PORT=${SOLR_PORT:-8983}
 SOLR_VERSION=${SOLR_VERSION:-4.10.2}
 DEBUG=${DEBUG:-false}
-SOLR_CORE=${SOLR_CORE:-provisioning-core}
+SOLR_CORE=${SOLR_CORE:-core0}
 
 download() {
     FILE="$2.tgz"
