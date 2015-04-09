@@ -1,22 +1,27 @@
 #!/usr/bin/env bash
 
 SOLR_PORT=${SOLR_PORT:-8983}
-SOLR_VERSION=${SOLR_VERSION:-4.9.1}
+SOLR_VERSION=${SOLR_VERSION:-4.10.2}
 DEBUG=${DEBUG:-false}
-SOLR_CORE=${SOLR_CORE:-core0}
+SOLR_CORE=${SOLR_CORE:-provisioning-core}
 
 download() {
     FILE="$2.tgz"
-    if [ -f $FILE ];
+    if [ -d "solr-$SOLR_VERSION" ];
     then
-       echo "File $FILE exists."
-       tar -zxf $FILE
-    else
-       echo "File $FILE does not exist. Downloading solr from $1..."
-       curl -O $1
-       tar -zxf $FILE
+        echo "Directory solr-$SOLR_VERSION exists, skipping tar download."
+    else   
+        if [ -f $FILE ];    
+        then
+           echo "File $FILE exists."
+           tar -zxf $FILE
+        else
+           echo "File $FILE does not exist. Downloading solr from $1..."
+           curl -O $1
+           tar -zxf $FILE
+        fi
     fi
-    echo "Downloaded!"
+    echo "Downloaded! or already found."
 }
 
 is_solr_up(){
