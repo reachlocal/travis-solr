@@ -4,6 +4,7 @@ SOLR_PORT=${SOLR_PORT:-8983}
 SOLR_VERSION=${SOLR_VERSION:-4.10.2}
 DEBUG=${DEBUG:-false}
 SOLR_CORE=${SOLR_CORE:-core0}
+CLEANUP=0
 
 download() {
     FILE="$2.tgz"
@@ -23,6 +24,22 @@ download() {
     fi
     echo "Downloaded! or already found."
 }
+
+clean_up_download() {
+    FILE="$2.tgz"
+    if [ -f $FILE ];    
+    then
+       echo "File $FILE exists."
+       tar -zxf $FILE
+    else
+       echo "File $FILE does not exist. Downloading solr from $1..."
+       curl -O $1
+       tar -zxf $FILE
+    fi
+
+    echo "Downloaded! or already found tar, re-unpacked."
+}
+
 
 is_solr_up(){
     echo "Checking if solr is up on http://localhost:$SOLR_PORT/solr/admin/cores"
@@ -51,7 +68,7 @@ run() {
     solr_core=$3
     # Run solr
     echo "Running with folder $dir_name"
-    echo "Starting solr on port ${solr_port}..."
+    echo "Setting up and starting solr on port ${solr_port}..."
 
     # go to the solr folder
     if [ -d "$1/example" ];
@@ -66,9 +83,9 @@ run() {
         fi
         wait_for_solr
         cd ../../
-        echo "Started"
+        echo "Started on port ${solr_port}!"
     else
-        echo "No directoy to copy to, cannot start Solr. EXITING...."
+        echo "No directoy to copy to, CANNOT START Solr. EXITING...."
         exit 1;
     fi
 }
@@ -243,10 +260,20 @@ add_core() {
           done
         fi
     else
-        echo "$1/example is not found, could not create core. Exiting...";
-        echo $?;
-        exit 1;
-    fi
+        CLEANUP=$(($CLEANUP+1));
+         echo "Might need to cleanup if = 1! ($CLEANUP)";
+        #redownload and try again only once
+        if [ "$CLEANUP" -eq 1 ];
+        then
+            echo "Running cleanup!";
+            clean_up_download $url $dir_name
+            add_core $dir_name $dir_conf $SOLR_CORE $SOLR_CONFS
+            echo "Cleanup done!";
+        else
+            echo "Failed to add core or cleanup solr install.";
+            exit 1;
+        fi
+    fi    
 }
 
 post_documents() {
