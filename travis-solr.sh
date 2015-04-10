@@ -31,9 +31,18 @@ is_solr_up(){
 }
 
 wait_for_solr(){
-    while ! is_solr_up; do
+    local check_limit_counter=0
+    local wait_limit=5
+    while [ ! is_solr_up ]  && ["$check_limit_counter" -le "$wait_limit"]; 
+    do
         sleep 3
+        $check_limit_counter = $(($check_limit_counter+1))
     done
+    if [ ! is_solr_up ]  && ["$check_limit_counter" -ge "$wait_limit"];  
+    then
+        echo "Solr start failed. Exiting......"
+        exit 1;
+    fi
 }
 
 run() {
@@ -45,17 +54,23 @@ run() {
     echo "Starting solr on port ${solr_port}..."
 
     # go to the solr folder
-    cd $1/example
-
-    if [ "$DEBUG" = "true" ]
+    if [ -d "$1/example" ];
     then
-        java -Djetty.port=$solr_port -Dsolr.solr.home=multicore -jar start.jar &
+        cd $1/example
+
+        if [ "$DEBUG" = "true" ]
+        then
+            java -Djetty.port=$solr_port -Dsolr.solr.home=multicore -jar start.jar &
+        else
+            java -Djetty.port=$solr_port -Dsolr.solr.home=multicore -jar start.jar > /dev/null 2>&1 &
+        fi
+        wait_for_solr
+        cd ../../
+        echo "Started"
     else
-        java -Djetty.port=$solr_port -Dsolr.solr.home=multicore -jar start.jar > /dev/null 2>&1 &
+        echo "No directoy to copy to, cannot start Solr. EXITING...."
+        exit 1;
     fi
-    wait_for_solr
-    cd ../../
-    echo "Started"
 }
 
 
@@ -194,7 +209,7 @@ download_and_run() {
 
     if [ -z "${SOLR_DOCS}" ]
     then
-        echo "$solr_docs not defined, skipping initial indexing"
+        echo "$solr_docs docs to index not defined, skipping possible initial indexing"
     else
         post_documents $dir_name $SOLR_DOCS $SOLR_CORE $SOLR_PORT
     fi
@@ -206,23 +221,31 @@ add_core() {
     solr_core=$3
     solr_confs=$4
     # prepare our folders
-    [[ -d "${dir_name}/example/multicore/${solr_core}" ]] || mkdir $dir_name/example/multicore/$solr_core
-    [[ -d "${dir_name}/example/multicore/${solr_core}/conf" ]] || mkdir $dir_name/example/multicore/$solr_core/conf
 
-    # copies custom configurations
-    if [ -d "${solr_confs}" ] ; then
-      cp -R $solr_confs/* $dir_name/example/multicore/$solr_core/conf/
-    else
-      for file in $solr_confs
-      do
-        if [ -f "${file}" ]; then
-            cp $file $dir_name/example/multicore/$solr_core/conf
-            echo "Copied $file into solr conf directory."
+    if [ -d "$1/example" ];
+    then
+        [[ -d "${dir_name}/example/multicore/${solr_core}" ]] || mkdir $dir_name/example/multicore/$solr_core
+        [[ -d "${dir_name}/example/multicore/${solr_core}/conf" ]] || mkdir $dir_name/example/multicore/$solr_core/conf
+
+        # copies custom configurations
+        if [ -d "${solr_confs}" ] ; then
+          cp -R $solr_confs/* $dir_name/example/multicore/$solr_core/conf/
         else
-            echo "${file} is not valid";
-            exit 1
+          for file in $solr_confs
+          do
+            if [ -f "${file}" ]; then
+                cp $file $dir_name/example/multicore/$solr_core/conf
+                echo "Copied $file into solr conf directory."
+            else
+                echo "${file} is not valid";
+                exit 1;
+            fi
+          done
         fi
-      done
+    else
+        echo "$1/example is not found, could not create core. Exiting...";
+        echo $?;
+        exit 1;
     fi
 }
 
@@ -234,7 +257,7 @@ post_documents() {
       # Post documents
     if [ -z "${solr_docs}" ]
     then
-        echo "SOLR_DOCS not defined, skipping initial indexing"
+        echo "SOLR_DOCS docs to index not defined, skipping possible initial indexing in post_documents"
     else
         echo "Indexing $solr_docs"
         java -Dtype=application/json -Durl=http://localhost:$solr_port/solr/$solr_core/update/json -jar $dir_name/example/exampledocs/post.jar $solr_docs
