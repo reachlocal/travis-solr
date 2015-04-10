@@ -50,16 +50,16 @@ is_solr_up(){
 wait_for_solr(){
     local check_limit_counter=0
     local wait_limit=5
-    while [ ! is_solr_up ]  && ["$check_limit_counter" -le "$wait_limit"]; 
+    while ! is_solr_up ; 
     do
         sleep 3
-        $check_limit_counter = $(($check_limit_counter+1))
+        if [ "$check_limit_counter" -ge "$wait_limit" ];  
+        then
+            echo "Solr start failed. Exiting......"
+            exit 1;
+        fi
+        check_limit_counter=$(($check_limit_counter+1))
     done
-    if [ ! is_solr_up ]  && ["$check_limit_counter" -ge "$wait_limit"];  
-    then
-        echo "Solr start failed. Exiting......"
-        exit 1;
-    fi
 }
 
 run() {
