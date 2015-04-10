@@ -74,7 +74,11 @@ run() {
     if [ -d "$1/example" ];
     then
         cd $1/example
-
+        
+        echo "Stopping if instance already running on port ${solr_port}!"
+        java -Djetty.port=$solr_port -Dsolr.solr.home=multicore -jar start.jar --stop
+        echo "Trying to start a new instance!"
+        
         if [ "$DEBUG" = "true" ]
         then
             java -Djetty.port=$solr_port -Dsolr.solr.home=multicore -jar start.jar &
